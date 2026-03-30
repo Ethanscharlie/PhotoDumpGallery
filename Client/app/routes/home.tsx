@@ -1,13 +1,13 @@
 import type { Route } from "./+types/home";
-import { Welcome } from "../welcome/welcome";
+import ImageView from "../ImageView";
 
-export function meta({}: Route.MetaArgs) {
+export function meta({ }: Route.MetaArgs) {
   return [
-    { title: "New React Router App" },
-    { name: "description", content: "Welcome to React Router!" },
+    { title: "Photo Dump Gallery" },
+    { name: "description", content: "Just my little photo dump" },
   ];
 }
 
 export default function Home() {
-  return <Welcome />;
+  return <ImageView />;
 }
