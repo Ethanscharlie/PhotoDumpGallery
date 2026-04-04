@@ -24,7 +24,6 @@ export default function AlbumView({ id = 1 }) {
     <div>
       <a href={albumUrl}>
         <img className="ImageViewImage" src={thumbnailUrl} />
-        <p>{id}</p>
         <p>{name}</p>
       </a>
     </div>

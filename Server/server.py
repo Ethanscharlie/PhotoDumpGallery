@@ -1,111 +1,60 @@
-import sqlite3
 from flask import Flask, send_file, request, jsonify
 from io import BytesIO
-from dataclasses import dataclass
+from db import engine
+from sqlalchemy.orm import Session
+from sqlalchemy import select
+
+from models.User import User
+from models.Album import Album
+from models.Image import Image
 
 app = Flask(__name__)
-
-DATABASE = "../Database/database.db"
-
-
-class ImageRow:
-    def __init__(self, imageID=0, note="", likes=0, dislikes=0, albumID=0, image=None):
-        self.imageID = imageID
-        self.note = note
-        self.likes = likes
-        self.dislikes = dislikes
-        self.albumID = albumID
-        self.image = image
-
-    @staticmethod
-    def getWithQuery(q: str):
-        rows = []
-
-        connection = sqlite3.connect(DATABASE)
-        cursor = connection.execute(q)
-
-        output = cursor.fetchall()
-        for row in output:
-            rows.append(ImageRow(row[0], row[1], row[2], row[3], row[4], row[5]))
-            print(rows[-1].imageID)
-
-        connection.close()
-        return rows
-
-    @staticmethod
-    def getAllFromAlbum(albumID: int):
-        return ImageRow.getWithQuery(f"SELECT * FROM Images WHERE albumID = {albumID}")
-
-    @staticmethod
-    def getAll(albumID: int):
-        return ImageRow.getWithQuery(f"SELECT * FROM Images")
-
-    @staticmethod
-    def getAllFromID(imageID: int):
-        return ImageRow.getWithQuery(f"SELECT * FROM Images WHERE imageID = {imageID}")[0]
-
-
-class AlbumRow:
-    def __init__(self, albumID=0, name="", authorID=0):
-        self.albumID = albumID
-        self.name = name
-        self.authorID = authorID
-
-    def asJson(self):
-        return jsonify(
-            {
-                "albumID": self.albumID,
-                "name": self.name,
-                "authorID": self.authorID,
-                "thumbnailID": self.getThumbnailID(),
-            }
-        )
-
-    def getThumbnailID(self) -> int:
-        return ImageRow.getAllFromAlbum(self.albumID)[0].imageID
-
-    @staticmethod
-    def getWithQuery(q: str):
-        rows = []
-
-        connection = sqlite3.connect(DATABASE)
-        cursor = connection.execute(q)
-
-        output = cursor.fetchall()
-        for row in output:
-            rows.append(AlbumRow(row[0], row[1], row[2]))
-
-        connection.close()
-        return rows
-
-    @staticmethod
-    def getWithID(albumID: int):
-        return AlbumRow.getWithQuery(f"SELECT * FROM Albums WHERE albumID = {albumID}")[0]
 
 
 @app.route("/image")
 def getImage():
     id = request.args.get("id")
-    b = BytesIO(ImageRow.getAllFromID(id).image)
+
+    with Session(engine) as session:
+        stmt = select(Image).where(Image.imageID == id)
+        image = session.execute(stmt).scalars().first()
+
+    if image is None:
+        raise ValueError(f"Image with id {id} was not found.")
+
+    b = BytesIO(image.image)
     return send_file(b, download_name="image.jpg", mimetype="image/jpg")
 
 
 @app.route("/album")
 def getAlbum():
     id = request.args.get("id")
-    return AlbumRow.getWithID(id).asJson()
+
+    with Session(engine) as session:
+        stmt = select(Album).where(Album.albumID == id)
+        album = session.execute(stmt).scalars().first()
+
+    if album is None:
+        raise ValueError(f"Album with id {id} was not found.")
+
+    return jsonify(album.toJson())
 
 
 @app.route("/imagesInAlbum")
 def getImagesInAlbum():
     id = request.args.get("id")
-    rows = ImageRow.getAllFromAlbum(id)
-    images = [row.imageID for row in rows]
-    return jsonify(images)
+
+    with Session(engine) as session:
+        stmt = select(Image).where(Image.albumID == id)
+        all_images = session.execute(stmt).scalars().all()
+
+    return jsonify([image.imageID for image in all_images])
 
 
 @app.route("/allImages")
 def getAllImages():
-    rows = ImageRow.getAll(id)
-    images = [row.imageID for row in rows]
-    return jsonify(images)
+    with Session(engine) as session:
+        stmt = select(Image)
+        all_images = session.execute(stmt).scalars().all()
+
+    return jsonify([image.imageID for image in all_images])

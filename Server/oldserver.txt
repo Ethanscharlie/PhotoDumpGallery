@@ -1,0 +1,75 @@
+
+class ImageRow:
+    def __init__(self, imageID=0, note="", likes=0, dislikes=0, albumID=0, image=None):
+        self.imageID = imageID
+        self.note = note
+        self.likes = likes
+        self.dislikes = dislikes
+        self.albumID = albumID
+        self.image = image
+
+    @staticmethod
+    def getWithQuery(q: str):
+        rows = []
+
+        connection = sqlite3.connect(DATABASE)
+        cursor = connection.execute(q)
+
+        output = cursor.fetchall()
+        for row in output:
+            rows.append(ImageRow(row[0], row[1], row[2], row[3], row[4], row[5]))
+            print(rows[-1].imageID)
+
+        connection.close()
+        return rows
+
+    @staticmethod
+    def getAllFromAlbum(albumID: int):
+        return ImageRow.getWithQuery(f"SELECT * FROM Images WHERE albumID = {albumID}")
+
+    @staticmethod
+    def getAll(albumID: int):
+        return ImageRow.getWithQuery(f"SELECT * FROM Images")
+
+    @staticmethod
+    def getAllFromID(imageID: int):
+        return ImageRow.getWithQuery(f"SELECT * FROM Images WHERE imageID = {imageID}")[0]
+
+
+class AlbumRow:
+    def __init__(self, albumID=0, name="", authorID=0):
+        self.albumID = albumID
+        self.name = name
+        self.authorID = authorID
+
+    def asJson(self):
+        return jsonify(
+            {
+                "albumID": self.albumID,
+                "name": self.name,
+                "authorID": self.authorID,
+                "thumbnailID": self.getThumbnailID(),
+            }
+        )
+
+    def getThumbnailID(self) -> int:
+        return ImageRow.getAllFromAlbum(self.albumID)[0].imageID
+
+    @staticmethod
+    def getWithQuery(q: str):
+        rows = []
+
+        connection = sqlite3.connect(DATABASE)
+        cursor = connection.execute(q)
+
+        output = cursor.fetchall()
+        for row in output:
+            rows.append(AlbumRow(row[0], row[1], row[2]))
+
+        connection.close()
+        return rows
+
+    @staticmethod
+    def getWithID(albumID: int):
+        return AlbumRow.getWithQuery(f"SELECT * FROM Albums WHERE albumID = {albumID}")[0]
+
