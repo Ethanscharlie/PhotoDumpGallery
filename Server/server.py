@@ -7,8 +7,12 @@ from sqlalchemy import select
 from models.User import User
 from models.Album import Album
 from models.Image import Image
+import jwt
+import datetime
 
 app = Flask(__name__)
+
+JWT_KEY = "feiwofbtrbrtigro"
 
 
 @app.route("/image")
@@ -58,3 +62,52 @@ def getAllImages():
         all_images = session.execute(stmt).scalars().all()
 
     return jsonify([image.imageID for image in all_images])
+
+
+def generateWebToken(userID: int, username: str) -> str:
+    payload = {
+        "user_id": userID,
+        "username": username,
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=5),
+    }
+
+    return jwt.encode(payload, JWT_KEY, algorithm="HS256")
+
+
+@app.route("/login", methods=["POST"])
+def login():
+    print("Got login request")
+    data = request.get_json()
+    username = data["username"]
+    password = data["password"]
+
+    with Session(engine) as session:
+        stmt = select(User).where(User.name == username)
+        user = session.execute(stmt).scalars().first()
+
+    if user and user.password == password:
+        token = generateWebToken(user.userID, username)
+        return jsonify({"message": "Login successful", "token": token}), 200
+
+    return jsonify({"message": "Invalid username or password"}), 401
+
+
+@app.route("/checkToken", methods=["GET"])
+def checkToken():
+    auth_header = request.headers.get("Authorization")
+    if not auth_header:
+        print("Missing auth header")
+        return jsonify({"valid": False, "message": "Missing Authorization header"}), 401
+
+    try:
+        token = auth_header.split(" ")[1]
+        decoded = jwt.decode(token, JWT_KEY, algorithms=["HS256"])
+        return jsonify({"valid": True, "user_id": decoded["user_id"]}), 200
+
+    except jwt.ExpiredSignatureError:
+        print("Token expired")
+        return jsonify({"valid": False, "message": "Token expired"}), 401
+
+    except jwt.InvalidTokenError:
+        print("Invalid token")
+        return jsonify({"valid": False, "message": "Invalid token"}), 401

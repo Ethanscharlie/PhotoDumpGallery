@@ -1,10 +1,27 @@
 import LogIn from "./LogIn";
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 export default function Navigation() {
   const [show, setShow] = useState(false)
+  const [isTokenValid, setIsTokenValid] = useState(false);
 
   const closeLogin = useCallback(() => setShow(false), [show]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return
+
+    fetch('/api/checkToken', { headers: { 'Authorization': `Bearer ${token}` } })
+      .then(response => {
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        return response.json();
+      })
+      .then(jsonData => {
+        setIsTokenValid(jsonData.valid);
+      })
+      .catch(error => console.error('Fetch failed:', error));
+  }, []);
+
 
   return (
     <nav className="bg-gray-200 text-black">
@@ -21,9 +38,8 @@ export default function Navigation() {
           </div>
 
           <div className="flex items-center space-x-4">
-            <button onClick={() => { setShow(true) }} className="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700">
-              Log in
-            </button>
+            {(!isTokenValid) ? <button onClick={() => { setShow(true) }} className="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700">Log in</button>
+              : <button onClick={() => { localStorage.removeItem("token"); window.location.reload(); }} className="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700">Log out</button>}
           </div>
 
         </div>
