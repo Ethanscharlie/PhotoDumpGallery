@@ -35,6 +35,9 @@ export default function Navigation() {
           <div className="hidden md:flex space-x-6">
             <a href="/" className="hover:text-blue-300">Home</a>
             <a href="#" className="hover:text-blue-300">Search</a>
+            {isTokenValid &&
+              <a href="/upload" className="hover:text-blue-300">Upload</a>
+            }
           </div>
 
           <div className="flex items-center space-x-4">

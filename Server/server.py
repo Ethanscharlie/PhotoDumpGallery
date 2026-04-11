@@ -1,4 +1,4 @@
-from flask import Flask, send_file, request, jsonify
+from flask import Flask, send_file, request, jsonify, g
 from io import BytesIO
 from db import engine
 from sqlalchemy.orm import Session
@@ -9,10 +9,37 @@ from models.Album import Album
 from models.Image import Image
 import jwt
 import datetime
+from functools import wraps
+
 
 app = Flask(__name__)
 
 JWT_KEY = "feiwofbtrbrtigro"
+
+
+def requireAuth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth_header = request.headers.get("Authorization")
+
+        if not auth_header:
+            return jsonify({"message": "Missing Authorization header"}), 401
+
+        try:
+            token = auth_header.split(" ")[1]
+            decoded = jwt.decode(token, JWT_KEY, algorithms=["HS256"])
+
+            g.user_id = decoded["user_id"]
+
+        except jwt.ExpiredSignatureError:
+            return jsonify({"message": "Token expired"}), 401
+
+        except jwt.InvalidTokenError:
+            return jsonify({"message": "Invalid token"}), 401
+
+        return f(*args, **kwargs)
+
+    return decorated
 
 
 @app.route("/image")
@@ -55,6 +82,28 @@ def getImagesInAlbum():
     return jsonify([image.imageID for image in all_images])
 
 
+@app.route("/albumsFromAuthor")
+def getAlbumsFromAuthor():
+    id = request.args.get("id")
+
+    with Session(engine) as session:
+        stmt = select(Album).where(Album.author == id)
+        all_albums = session.execute(stmt).scalars().all()
+
+    return jsonify([album.albumID for album in all_albums])
+
+
+@app.route("/userinfo")
+def getUserInfo():
+    id = request.args.get("id")
+
+    with Session(engine) as session:
+        stmt = select(User).where(User.userID == id)
+        user = session.execute(stmt).scalars().first()
+
+    return jsonify({"name": user.name})
+
+
 @app.route("/allImages")
 def getAllImages():
     with Session(engine) as session:
@@ -93,21 +142,40 @@ def login():
 
 
 @app.route("/checkToken", methods=["GET"])
+@requireAuth
 def checkToken():
-    auth_header = request.headers.get("Authorization")
-    if not auth_header:
-        print("Missing auth header")
-        return jsonify({"valid": False, "message": "Missing Authorization header"}), 401
+    return jsonify({"valid": True, "user_id": g.user_id}), 200
 
-    try:
-        token = auth_header.split(" ")[1]
-        decoded = jwt.decode(token, JWT_KEY, algorithms=["HS256"])
-        return jsonify({"valid": True, "user_id": decoded["user_id"]}), 200
 
-    except jwt.ExpiredSignatureError:
-        print("Token expired")
-        return jsonify({"valid": False, "message": "Token expired"}), 401
+@app.route("/upload", methods=["POST"])
+@requireAuth
+def upload():
+    print("Got upload request")
+    albumName = request.args.get("name")
 
-    except jwt.InvalidTokenError:
-        print("Invalid token")
-        return jsonify({"valid": False, "message": "Invalid token"}), 401
+    files = request.files.getlist("images")
+
+    if len(files) <= 0:
+        print("Upload Error: No files uploaded")
+        return jsonify({"error": "No files uploaded"}), 400
+
+    filteredFiles = [file for file in files if file.filename != "" if file.mimetype == "image/jpeg"]
+    if len(filteredFiles) <= 0:
+        print("Upload Error: No valid files uploaded")
+        return jsonify({"error": "No files valid"}), 400
+
+    newAlbum = Album(name=albumName, author=g.user_id)
+    with Session(engine) as session:
+        session.add(newAlbum)
+        session.commit()
+        session.refresh(newAlbum)
+
+    print(newAlbum)
+
+    for file in filteredFiles:
+        newImage = Image(albumID=newAlbum.albumID, image=file.read(), likes=0, dislikes=0)
+        with Session(engine) as session:
+            session.add(newImage)
+            session.commit()
+
+    return jsonify({"message": "Files uploaded successfully"})
