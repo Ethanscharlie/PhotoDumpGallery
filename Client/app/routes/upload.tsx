@@ -3,11 +3,11 @@ import Navigation from "~/Navigation";
 
 export default function Upload() {
   const [albumName, setAlbumName] = useState("SomeAlbumName");
-  const [images, setImages] = useState<FileList>();
+  const [images, setImages] = useState<File[]>([]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement, HTMLInputElement>) => {
     if (e.target.files == null) return;
-    setImages(e.target.files);
+    setImages(Array.from(e.target.files));
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -45,15 +45,37 @@ export default function Upload() {
     <div>
       <Navigation />
 
-      <form onSubmit={handleSubmit} method="POST">
+      <form onSubmit={handleSubmit} method="POST" className="p-8">
         <input
           type="file"
           multiple
+          accept="image/*"
+          className="block w-full text-sm text-gray-500 
+             file:mr-4 file:py-2 file:px-4
+             file:rounded-lg file:border-0
+             file:text-sm file:font-semibold
+             file:bg-blue-50 file:text-blue-700
+             hover:file:bg-blue-100"
           onChange={handleFileChange}
         />
 
+        <input type="text" className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" />
+
         <button className="text-white text-center bg-blue-600 px-4 py-2 rounded hover:bg-blue-700 text-white" type="submit">Upload</button>
       </form>
+
+      {images.map((img, index) => (
+        <div
+          key={index}
+          className="relative w-32 h-32 rounded-lg overflow-hidden border"
+        >
+          <img
+            src={URL.createObjectURL(img)}
+            alt="preview"
+            className="w-full h-full object-cover"
+          />
+        </div>
+      ))}
     </div>
   )
 }

@@ -3,6 +3,7 @@ import ImageView from "../ImageView";
 import { useEffect, useState } from "react";
 import AlbumView from "~/AlbumView";
 import { useSearchParams } from "react-router";
+import Navigation from "~/Navigation";
 
 export function meta({ }: Route.MetaArgs) {
   return [
@@ -27,6 +28,7 @@ export default function Album() {
 
   return (
     <div>
+      <Navigation />
       {data.map((id) => (
         <ImageView id={id} key={id} />
       ))}
