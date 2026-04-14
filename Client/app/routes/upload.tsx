@@ -67,13 +67,22 @@ export default function Upload() {
       {images.map((img, index) => (
         <div
           key={index}
-          className="relative w-32 h-32 rounded-lg overflow-hidden border"
+          className="relative p-3 w-100"
         >
           <img
             src={URL.createObjectURL(img)}
             alt="preview"
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover rounded"
           />
+          <button
+            className="absolute top-0 bg-red-500 text-white w-10 h-10 text-5xl font-bold rounded hover:bg-red-800"
+            onClick={
+              () => {
+                const filteredImages = [...images.slice(0, index), ...images.slice(index + 1)];
+                setImages(filteredImages)
+              }
+            }
+          >-</button>
         </div>
       ))}
     </div>
