@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 export default function Navigation() {
   const [show, setShow] = useState(false)
   const [isTokenValid, setIsTokenValid] = useState(false);
+  const [userID, setUserID] = useState(-1);
 
   const closeLogin = useCallback(() => setShow(false), [show]);
 
@@ -18,10 +19,10 @@ export default function Navigation() {
       })
       .then(jsonData => {
         setIsTokenValid(jsonData.valid);
+        setUserID(jsonData.user_id);
       })
       .catch(error => console.error('Fetch failed:', error));
   }, []);
-
 
   return (
     <nav className="bg-gray-200 text-black">
@@ -36,7 +37,10 @@ export default function Navigation() {
             <a href="/" className="hover:text-blue-300">Home</a>
             <a href="#" className="hover:text-blue-300">Search</a>
             {isTokenValid &&
-              <a href="/upload" className="hover:text-blue-300">Upload</a>
+              <>
+                <a href="/upload" className="hover:text-blue-300">Upload</a>
+                <a href={`/author?id=${userID}`} className="hover:text-blue-300">My Albums</a>
+              </>
             }
           </div>
 
