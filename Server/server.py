@@ -42,6 +42,22 @@ def requireAuth(f):
     return decorated
 
 
+def getIDIfAuth(authHeader) -> int | None:
+    if not authHeader:
+        return None
+
+    try:
+        token = authHeader.split(" ")[1]
+        decoded = jwt.decode(token, JWT_KEY, algorithms=["HS256"])
+        return decoded["user_id"]
+
+    except jwt.ExpiredSignatureError:
+        return None
+
+    except jwt.InvalidTokenError:
+        return None
+
+
 @app.route("/image")
 def getImage():
     id = request.args.get("id")
@@ -68,7 +84,19 @@ def getAlbum():
     if album is None:
         raise ValueError(f"Album with id {id} was not found.")
 
-    return jsonify(album.toJson())
+    data = album.toJson()
+    data["owns"] = False
+
+    userID = getIDIfAuth(request.headers.get("Authorization"))
+    print(userID)
+    if userID:
+        with Session(engine) as session:
+            stmt = select(Album).where(Album.albumID == userID)
+            album = session.execute(stmt).scalars().first()
+
+        data["owns"] = album is not None
+
+    return jsonify(data)
 
 
 @app.route("/imagesInAlbum")

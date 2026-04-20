@@ -14,6 +14,8 @@ export function meta({ }: Route.MetaArgs) {
 
 export default function Album() {
   const [data, setData] = useState([]);
+  const [owns, setOwns] = useState(false);
+  const [name, setName] = useState("");
   let [searchParams, setSearchParams] = useSearchParams();
   let id = searchParams.get("id")
 
@@ -26,9 +28,22 @@ export default function Album() {
       .catch(error => console.error('Fetch failed:', error));
   }, []);
 
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+
+    fetch(`/api/album?id=${id}`, { headers: { 'Authorization': `Bearer ${token}` } })
+      .then(response => response.json())
+      .then(jsonData => {
+        setName(jsonData.name);
+        setOwns(jsonData.owns);
+      })
+      .catch(error => console.error('Fetch failed:', error));
+  }, []);
+
   return (
     <div>
       <Navigation />
+      {owns && <h1>You own this!</h1>}
       {data.map((id) => (
         <ImageView id={id} key={id} />
       ))}
